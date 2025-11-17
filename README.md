@@ -15,7 +15,7 @@ Trabalho Agentes de IA - 10pts
 sair
 
 ## Perguntas de exemplos
-- fale sobre o bitcoin
+- Bitcoin
 - Fale sobre a copa do mundo
 
 ## Configurar chave de api e git-ignore
