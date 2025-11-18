@@ -23,7 +23,7 @@ class TokenMonitorCallback(BaseCallbackHandler):
             if generations and generations[0].generation_info:
                 usage = generations[0].generation_info.get("usage_metadata", {})
                 total = usage.get("total_tokens", 0)
-                print(f"\n📊 [TOKEN MONITOR] Total usado na etapa: {total}")
+                print(f"\n [TOKEN MONITOR] Total usado na etapa: {total}")
         except:
             pass
 
@@ -35,7 +35,7 @@ def search_news_direct(query: str):
     Pesquisa notícias reais no DuckDuckGo.
     Retorna os títulos, datas e resumos das últimas notícias.
     """
-    print(f"\n🔍 Pesquisando notícias sobre: '{query}' no DuckDuckGo...")
+    print(f"\n Pesquisando notícias sobre: '{query}' no DuckDuckGo...")
     try:
         # Usamos max_results=5 para não estourar o limite de tokens
         with DDGS() as ddgs:
@@ -66,7 +66,7 @@ def search_news_direct(query: str):
 # Tool 2: Code Agent de Análise de Sentimento
 def analyze_sentiment(text: str):
     """Analisa se o texto é Positivo, Negativo ou Neutro usando TextBlob."""
-    print(f"\n🧠 Calculando sentimento matemática do texto...")
+    print(f"\n Calculando sentimento matemática do texto...")
     analysis = TextBlob(text)
     polarity = analysis.sentiment.polarity
     

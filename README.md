@@ -12,7 +12,6 @@ Trabalho Agentes de IA - 10pts
 - pip install -r requirements.txt
 ## Executar o agente
 - python agente.py
-sair
 
 ## Perguntas de exemplos
 - Bitcoin
