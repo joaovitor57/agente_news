@@ -6,95 +6,107 @@ from langchain import hub
 from langchain_core.tools import Tool
 from langchain_core.callbacks import BaseCallbackHandler
 from textblob import TextBlob
-from duckduckgo_search import DDGS  # Importação direta da biblioteca
+try:
+    from duckduckgo_search import DDGS
+except ImportError:
+    from ddgs import DDGS
 
-# --- 1. Configuração Inicial ---
+# Configuração Inicial
 load_dotenv()
 
+os.environ["LANGCHAIN_TRACING_V2"] = "false"
+
 if os.environ.get("GOOGLE_API_KEY") is None:
-    print("❌ Erro: GOOGLE_API_KEY não encontrada no arquivo .env")
+    print("Erro: GOOGLE_API_KEY não encontrada no arquivo .env")
     exit()
 
-# --- 2. Monitoramento de Tokens (Requisito do PDF) ---
+# Monitoramento de Tokens
 class TokenMonitorCallback(BaseCallbackHandler):
     def on_llm_end(self, response, **kwargs):
+        """Captura e exibe o uso de tokens após cada execução do LLM."""
         try:
             generations = response.generations[0]
             if generations and generations[0].generation_info:
                 usage = generations[0].generation_info.get("usage_metadata", {})
                 total = usage.get("total_tokens", 0)
-                print(f"\n [TOKEN MONITOR] Total usado na etapa: {total}")
+                print(f"\n [TOKEN MONITOR] Total tokens used in this step: {total}")
         except:
             pass
 
-# --- 3. Ferramentas (Tools) ---
+# Tools
 
-# Tool 1: Pesquisa de Notícias (Customizada e Direta)
-def search_news_direct(query: str):
+def search_news_english(query: str):
     """
-    Pesquisa notícias reais no DuckDuckGo.
-    Retorna os títulos, datas e resumos das últimas notícias.
+    Pesquisa notícias em INGLÊS no DuckDuckGo.
+    Retorna títulos, datas e resumos.
     """
-    print(f"\n Pesquisando notícias sobre: '{query}' no DuckDuckGo...")
+    print(f"\nSearching for news about: '{query}' (Region: US-EN)...")
     try:
-        # Usamos max_results=5 para não estourar o limite de tokens
         with DDGS() as ddgs:
-            # O método .news() é específico para notícias
-            results = list(ddgs.news(keywords=query, region="br-pt", max_results=5))
+            # MUDANÇA: region="us-en" força notícias globais/EUA em inglês
+            results = list(ddgs.news(keywords=query, region="us-en", max_results=5))
             
             if not results:
-                # Fallback: Tenta pesquisa de texto comum se news falhar
-                results = list(ddgs.text(keywords=f"{query} noticias", region="br-pt", max_results=5))
+                # Fallback para busca de texto se news falhar
+                results = list(ddgs.text(keywords=f"{query} news", region="us-en", max_results=5))
 
             if not results:
-                return "Nenhuma notícia encontrada. O servidor pode estar bloqueando a conexão."
+                return "No news found. The server might be blocking the connection."
 
             # Formata o resultado para o LLM ler
             formatted_results = ""
             for item in results:
-                title = item.get('title', 'Sem título')
+                title = item.get('title', 'No title')
                 body = item.get('body', item.get('snippet', ''))
-                source = item.get('source', 'Fonte desconhecida')
+                source = item.get('source', 'Unknown Source')
                 date = item.get('date', '')
                 formatted_results += f"- [{date}] {title} ({source}): {body}\n"
             
             return formatted_results
 
     except Exception as e:
-        return f"Erro crítico na ferramenta de busca: {str(e)}"
+        return f"Critical error in search tool: {str(e)}"
 
-# Tool 2: Code Agent de Análise de Sentimento
 def analyze_sentiment(text: str):
-    """Analisa se o texto é Positivo, Negativo ou Neutro usando TextBlob."""
-    print(f"\n Calculando sentimento matemática do texto...")
+    """
+    Analisa se o texto é Positivo, Negativo ou Neutro usando TextBlob.
+    Funciona perfeitamente para textos em Inglês.
+    """
+    print(f"\n Calculando sentimento")
     analysis = TextBlob(text)
     polarity = analysis.sentiment.polarity
     
+    # Classificação baseada na polaridade (-1 a 1)
     if polarity > 0.1:
-        return f"POSITIVO (Score: {polarity:.2f})"
+        return f"POSITIVO (: {polarity:.2f})"
     elif polarity < -0.1:
-        return f"NEGATIVO (Score: {polarity:.2f})"
+        return f"NEGATIVO (: {polarity:.2f})"
     else:
-        return f"NEUTRO (Score: {polarity:.2f})"
+        return f"NEUTRO (: {polarity:.2f})"
 
+# Lista de Tools
 tools = [
     Tool(
-        name="Pesquisar_Noticias",
-        func=search_news_direct,
-        description="Use para buscar as últimas notícias. Entrada: termo de busca (ex: 'Bitcoin', 'Petrobras')."
+        name="Search_News",
+        func=search_news_english,
+        description="Useful to find the latest news about a topic. Input: search query."
     ),
     Tool(
-        name="Analisar_Sentimento",
+        name="Analyze_Sentiment",
         func=analyze_sentiment,
-        description="Analisa o sentimento de um texto. Entrada: O texto/resumo da notícia encontrado."
+        description="MANDATORY: Use this tool immediately after finding news to calculate the polarity score. Input: The full text of the news."
     )
 ]
 
-# --- 4. Configuração do Agente ---
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+# Configuração do Agente 
+
+# MODELO E VERSAO DA LLM USADA
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
+
 prompt = hub.pull("hwchase17/react")
 
 agent = create_react_agent(llm, tools, prompt)
+#  Configuração do Agente
 agent_executor = AgentExecutor(
     agent=agent, 
     tools=tools, 
@@ -103,14 +115,24 @@ agent_executor = AgentExecutor(
     callbacks=[TokenMonitorCallback()]
 )
 
-# --- 5. Loop Principal ---
+# Loop Principal 
 if __name__ == "__main__":
-    print("📰 ASSISTENTE DE NOTÍCIAS (Versão Corrigida)")
-    print("Dica: Se der erro de busca, tente termos mais gerais.")
+    print("NEWS SENTIMENT ANALYST ( )")
+    print("Example: 'COP30', 'Formula 1', 'Apple'")
     
     while True:
-        user_input = input("\nTema (ou 'sair'): ")
+        user_input = input("\n Tema de busca ou 'X' para encerrar: ")
         if user_input.lower() in ['sair', 'x']:
             break
         
-        agent_executor.invoke({"input": user_input})
+        # Prompt Injection: Forçamos o agente a seguir o fluxo correto em inglês
+        prompt_completo = (
+            f"Search for the latest news about '{user_input}'. "
+            f"Then, YOU MUST use the 'Analyze_Sentiment' tool "
+            f"on the content of the news found to give me the polarity score."
+        )
+        
+        try:
+            agent_executor.invoke({"input": prompt_completo})
+        except Exception as e:
+            print(f"Error: {e}")

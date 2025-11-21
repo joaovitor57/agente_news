@@ -15,7 +15,7 @@ Trabalho Agentes de IA - 10pts
 
 ## Perguntas de exemplos
 - Bitcoin
-- Fale sobre a copa do mundo
+- banco master
 
 ## Configurar chave de api e git-ignore
 - echo "GOOGLE_API_KEY= ->CHAVE_AQUI<- " > .env
